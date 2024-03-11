@@ -1,0 +1,181 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Простой тайм-трекер</title>
+    <style>
+        body {
+            background-color: black;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        #taskList {
+            list-style: none;
+            padding: 0;
+            margin-top: 8px;
+        }
+        #taskName{
+            border-radius: 4px;
+            background-color: #9c9c9c;
+            border: 0;
+            height: 32px;
+            width:100%;
+            margin-right: 3px;
+            color: white;
+            background-clip: padding-box;
+        }
+        input:focus{
+            outline: none !important;
+        }
+        #playButton{
+            background-color: transparent;
+            border: none;
+            padding: 0;
+            height: 32px;
+            width: 32px;
+        }
+        #playButton img{
+            filter: invert(100%);
+        }
+        .inpt-frm{
+            max-height: 32px;
+            display: flex;
+        }
+        .taskItem {
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            
+        }
+        .duration{
+            color: blueviolet;
+        }
+        .timer{
+            color: blueviolet;
+        }
+        .time-tracker{
+            width: 500px;
+        }
+
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+</head>
+<body>
+
+<div class="time-tracker">
+    {% csrf_token %}
+    <div class="inpt-frm">
+        <input type="text" id="taskName">
+        <button id="playButton"><img src="{% static 'playButton.png' %}"></button>
+    </div>
+    <hr>
+
+    <ul id="taskList">
+        {% block content %}
+            {% for task in tasks %}
+                <li class='taskItem stopped' data-task="---" data-name="{{task.name}}">{{task.name}} 
+                    <span class='duration'>{{task.time_elapsed}}</span>
+                </li>
+                <hr>
+            {% endfor %}
+        {% endblock content %}
+        
+    </ul>
+</div>
+
+<script>
+    $(document).ready(function () {
+        var timers = {};
+        var taskIdCounter = 1;
+
+        $("#playButton").click(function () {
+            var taskName = $("#taskName").val();
+
+            if (taskName.trim() === "") {
+                alert("Пожалуйста введите название задачи.");
+                return;
+            }
+
+            var taskId = new Date().getTime().toString();
+
+            // Добавление задачи в список
+            $("#taskList").append("<li class='taskItem' data-task='" + taskId + "' data-name='"+ taskName +"'>" + taskName + " <span class='timer'>00:00</span></li><hr>");
+
+            // Запуск таймера для новой задачи
+            timers[taskId] = { seconds: 1 };
+            startTimer(taskId);
+        });
+
+        // Обработка остановки задачи
+        $(document).on("click", ".taskItem", function () {
+            var taskId = $(this).data("task");
+            var taskName = $(this).data("name");
+
+            if ($(this).hasClass("stopped")) {
+                return;
+            }
+
+            var duration = $(".timer", this).text();
+            
+
+            // Отображение времени в формате H:M или M в зависимости от наличия часов
+            var timeArray = duration.split(":");
+            var hours = parseInt(timeArray[0]);
+            var minutes = parseInt(timeArray[1]);
+
+            if (minutes < 1) {
+                alert("Задачи длительностью меньше 1 минуты не сохраняются!");
+                return;
+            }
+
+
+            clearInterval(timers[taskId].interval);
+
+            var timeDisplay = hours > 0 ? pad(hours) + ":" + pad(minutes) : pad(minutes) + "m";
+            var csrfToken = $('input[name="csrfmiddlewaretoken"]').val();
+
+
+            $.post("/add_task/", {"name":taskName, "time":timeDisplay, "csrfmiddlewaretoken":csrfToken}, function(data){
+                if (data.success === "true"){
+                    alert("successufly added");
+                    location.reload();
+                } else {
+                    alert("error");
+                }
+            })
+
+            
+
+            $(this).append(" <span class='duration'>" + timeDisplay + "</span>");
+            $(".timer", this).hide();
+            $(this).addClass("stopped");
+        });
+
+        function startTimer(taskId) {
+            timers[taskId].interval = setInterval(function () {
+                timers[taskId].seconds++;
+                $(".taskItem[data-task='" + taskId + "'] .timer").text(formatTime(timers[taskId].seconds));
+            }, 1000);
+        }
+
+        function formatTime(seconds) {
+            var hours = Math.floor(seconds / 3600);
+            var minutes = Math.floor(seconds / 60);
+            seconds = seconds % 60;
+
+            return pad(hours)+ ":" + pad(minutes);
+        }
+
+        function pad(number) {
+            return number < 10 ? "0" + number : number;
+        }
+    });
+</script>
+
+</body>
+</html>
