@@ -11,9 +11,8 @@ def task_list(request):
 
 def add_task(request):
     session = request.session.session_key
-    print(request.session)
     if request.method == 'POST':
-        print(request.POST)
-        # print("Session:" + session)
-        Task.objects.create(name=request.POST.get("name"), time_elapsed = request.POST.get("time"), session_id=session)
+        Task.objects.create(name=request.POST.get("name"), 
+                            time_elapsed = request.POST.get("time"), 
+                            session_id=session)
     return JsonResponse({"success":"true"})
